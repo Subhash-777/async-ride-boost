@@ -46,6 +46,27 @@ export default {
         card: {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
+          hover: "hsl(var(--card-hover))",
+        },
+        // RideShare specific colors
+        ride: {
+          primary: "hsl(var(--ride-primary))",
+          "primary-glow": "hsl(var(--ride-primary-glow))",
+          secondary: "hsl(var(--ride-secondary))",
+          accent: "hsl(var(--ride-accent))",
+          danger: "hsl(var(--ride-danger))",
+        },
+        map: {
+          pickup: "hsl(var(--map-pickup))",
+          dropoff: "hsl(var(--map-dropoff))",
+          driver: "hsl(var(--map-driver))",
+          route: "hsl(var(--map-route))",
+        },
+        status: {
+          online: "hsl(var(--status-online))",
+          offline: "hsl(var(--status-offline))",
+          busy: "hsl(var(--status-busy))",
+          emergency: "hsl(var(--status-emergency))",
         },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
@@ -57,6 +78,21 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+      },
+      backgroundImage: {
+        'gradient-primary': 'var(--gradient-primary)',
+        'gradient-secondary': 'var(--gradient-secondary)',
+        'gradient-card': 'var(--gradient-card)',
+        'gradient-map': 'var(--gradient-map)',
+      },
+      boxShadow: {
+        'primary': 'var(--shadow-primary)',
+        'card': 'var(--shadow-card)',
+        'glow': 'var(--shadow-glow)',
+      },
+      transitionTimingFunction: {
+        'smooth': 'var(--transition-smooth)',
+        'bounce': 'var(--transition-bounce)',
       },
       borderRadius: {
         lg: "var(--radius)",

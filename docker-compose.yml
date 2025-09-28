@@ -1,0 +1,111 @@
+version: '3.8'
+
+services:
+  # MySQL Database
+  mysql:
+    image: mysql:8.0
+    container_name: rideshare-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: rideshare_root_password
+      MYSQL_DATABASE: rideshare
+      MYSQL_USER: rideshare_user
+      MYSQL_PASSWORD: rideshare_password
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./backend/database/schema.sql:/docker-entrypoint-initdb.d/1-schema.sql
+      - ./backend/database/seed.sql:/docker-entrypoint-initdb.d/2-seed.sql
+    networks:
+      - rideshare-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+
+  # Backend API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: rideshare-backend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      DB_HOST: mysql
+      DB_USER: rideshare_user
+      DB_PASSWORD: rideshare_password
+      DB_NAME: rideshare
+      JWT_SECRET: your-super-secret-jwt-key-change-in-production
+      FRONTEND_URL: http://localhost:8080
+    ports:
+      - "3001:3001"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - rideshare-network
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+
+  # Frontend (Vite)
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: rideshare-frontend
+    restart: unless-stopped
+    environment:
+      VITE_API_URL: http://localhost:3001/api
+    ports:
+      - "8080:8080"
+    depends_on:
+      - backend
+    networks:
+      - rideshare-network
+    volumes:
+      - .:/app
+      - /app/node_modules
+
+  # Redis for caching (optional, for production scaling)
+  redis:
+    image: redis:7-alpine
+    container_name: rideshare-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    networks:
+      - rideshare-network
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+
+  # Nginx Load Balancer (for production)
+  nginx:
+    image: nginx:alpine
+    container_name: rideshare-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+      - ./ssl:/etc/nginx/ssl
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - rideshare-network
+
+volumes:
+  mysql_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  rideshare-network:
+    driver: bridge
