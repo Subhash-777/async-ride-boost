@@ -1,0 +1,20 @@
+services:
+  # MySQL Database
+  mysql:
+    image: mysql:8.0
+    container_name: rideshare-mysql-dev
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: rideshare_root_password
+      MYSQL_DATABASE: rideshare
+      MYSQL_USER: rideshare_user
+      MYSQL_PASSWORD: rideshare_password
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./backend/database/schema.sql:/docker-entrypoint-initdb.d/1-schema.sql
+      - ./backend/database/seed.sql:/docker-entrypoint-initdb.d/2-seed.sql
+
+networks:
+  default:
+    name: rideshare-dev
