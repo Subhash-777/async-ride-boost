@@ -53,7 +53,7 @@ export const HomePage: React.FC = () => {
   };
 
   if (!user) {
-    return <Navigate to="/login" replace />;
+    return null;
   }
 
   return (
