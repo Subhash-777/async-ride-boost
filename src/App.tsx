@@ -17,7 +17,9 @@ const App = () => {
 
   useEffect(() => {
     const checkAuth = () => {
+      console.log('Checking authentication...');
       const authenticated = authService.isAuthenticated();
+      console.log('Authentication result:', authenticated);
       setIsAuthenticated(authenticated);
       setIsLoading(false);
     };
