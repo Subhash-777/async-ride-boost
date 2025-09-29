@@ -57,6 +57,7 @@ const App = () => {
                   )
                 } 
               />
+              <Route path="/login" element={<AuthPage onAuthSuccess={handleAuthSuccess} />} />
               <Route 
                 path="/home" 
                 element={
