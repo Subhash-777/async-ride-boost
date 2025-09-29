@@ -17,7 +17,9 @@ const App = () => {
 
   useEffect(() => {
     const checkAuth = () => {
+      console.log('Checking authentication...');
       const authenticated = authService.isAuthenticated();
+      console.log('Authentication result:', authenticated);
       setIsAuthenticated(authenticated);
       setIsLoading(false);
     };
@@ -27,6 +29,7 @@ const App = () => {
 
   const handleAuthSuccess = () => {
     setIsAuthenticated(true);
+    window.location.href = '/home';
   };
 
   if (isLoading) {
@@ -47,14 +50,9 @@ const App = () => {
             <Routes>
               <Route 
                 path="/" 
-                element={
-                  isAuthenticated ? (
-                    <HomePage />
-                  ) : (
-                    <AuthPage onAuthSuccess={handleAuthSuccess} />
-                  )
-                } 
+                element={<AuthPage onAuthSuccess={handleAuthSuccess} />}
               />
+              <Route path="/login" element={<AuthPage onAuthSuccess={handleAuthSuccess} />} />
               <Route 
                 path="/home" 
                 element={

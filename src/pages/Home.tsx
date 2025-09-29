@@ -9,6 +9,7 @@ import { Location, Driver } from '@/types/ride';
 import { useToast } from '@/hooks/use-toast';
 import { LogOut, User, Wallet, History, Activity } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Navigate } from 'react-router-dom';
 
 export const HomePage: React.FC = () => {
   const [pickup, setPickup] = useState<Location | undefined>();
@@ -52,7 +53,7 @@ export const HomePage: React.FC = () => {
   };
 
   if (!user) {
-    return null;
+    return <Navigate to="/login" replace />;
   }
 
   return (
