@@ -4,55 +4,151 @@ const db = require('../config/database');
 const auth = require('../middleware/auth');
 const { validateRideRequest } = require('../middleware/validation');
 
-// Get ride estimate
-router.post('/estimate', auth, validateRideRequest, async (req, res) => {
+// Enhanced validation middleware for ride requests
+const validateRideRequestEnhanced = (req, res, next) => {
+  const { pickup, dropoff, ride_type } = req.body;
+  
+  if (!pickup || !dropoff) {
+    return res.status(400).json({ message: 'Pickup and dropoff locations are required' });
+  }
+  
+  if (!pickup.lat || !pickup.lng || !dropoff.lat || !dropoff.lng) {
+    return res.status(400).json({ message: 'Invalid location coordinates' });
+  }
+  
+  if (!ride_type || !['standard', 'premium', 'shared'].includes(ride_type)) {
+    return res.status(400).json({ message: 'Valid ride type is required' });
+  }
+  
+  next();
+};
+
+// Get ride estimate - FIXED VERSION
+router.post('/estimate', auth, validateRideRequestEnhanced, async (req, res) => {
   try {
     const { pickup, dropoff, ride_type } = req.body;
     
-    // Calculate distance (simplified calculation)
+    console.log('Estimate request:', { pickup, dropoff, ride_type });
+    
+    // Calculate distance using Haversine formula
     const distance = calculateDistance(
       pickup.lat, pickup.lng,
       dropoff.lat, dropoff.lng
     );
     
-    // Base fare calculation
+    console.log('Calculated distance:', distance);
+    
+    // Base fare calculation with proper rates
     const baseFares = {
-      standard: 2.5,
-      premium: 4.0,
-      shared: 1.8
+      standard: 25.0,  // Base fare in INR
+      premium: 40.0,
+      shared: 18.0
     };
     
     const baseFare = baseFares[ride_type] || baseFares.standard;
-    const distanceFare = distance * 1.2;
+    const perKmRate = {
+      standard: 12.0,  // Per km rate in INR
+      premium: 18.0,
+      shared: 8.0
+    };
     
-    // Surge pricing (simplified)
+    const kmRate = perKmRate[ride_type] || perKmRate.standard;
+    const distanceFare = distance * kmRate;
+    
+    // Time-based surge pricing
     const currentHour = new Date().getHours();
     let surgeMultiplier = 1.0;
     
-    // Peak hours: 7-9 AM, 5-8 PM
-    if ((currentHour >= 7 && currentHour <= 9) || (currentHour >= 17 && currentHour <= 20)) {
+    // Peak hours: 7-10 AM, 5-9 PM
+    if ((currentHour >= 7 && currentHour <= 10) || (currentHour >= 17 && currentHour <= 21)) {
       surgeMultiplier = 1.5;
+    }
+    // Late night: 11 PM - 5 AM
+    else if (currentHour >= 23 || currentHour <= 5) {
+      surgeMultiplier = 1.3;
+    }
+    
+    // Weekend surge (simplified - always consider surge for demo)
+    const dayOfWeek = new Date().getDay();
+    if (dayOfWeek === 0 || dayOfWeek === 6) { // Sunday or Saturday
+      surgeMultiplier = Math.max(surgeMultiplier, 1.2);
     }
     
     const totalFare = (baseFare + distanceFare) * surgeMultiplier;
-    const duration = Math.ceil(distance / 40 * 60); // Assuming 40 km/h average speed
+    const duration = Math.ceil((distance / 25) * 60); // Assuming 25 km/h average speed in city
     
-    res.json({
+    const estimate = {
       distance: Math.round(distance * 100) / 100,
-      duration,
+      duration: Math.max(duration, 5), // Minimum 5 minutes
       base_fare: Math.round(baseFare * 100) / 100,
+      distance_fare: Math.round(distanceFare * 100) / 100,
       surge_multiplier: surgeMultiplier,
       total_fare: Math.round(totalFare * 100) / 100,
-      currency: 'USD'
-    });
+      currency: 'INR',
+      pickup_address: pickup.address || `${pickup.lat.toFixed(4)}, ${pickup.lng.toFixed(4)}`,
+      dropoff_address: dropoff.address || `${dropoff.lat.toFixed(4)}, ${dropoff.lng.toFixed(4)}`
+    };
+    
+    console.log('Estimate response:', estimate);
+    
+    res.json(estimate);
   } catch (error) {
     console.error('Estimate error:', error);
-    res.status(500).json({ message: 'Failed to calculate estimate' });
+    res.status(500).json({ 
+      message: 'Failed to calculate estimate', 
+      error: error.message 
+    });
+  }
+});
+
+// Get nearby drivers
+router.get('/nearby-drivers', auth, async (req, res) => {
+  try {
+    const { lat, lng, radius = 5 } = req.query;
+    
+    if (!lat || !lng) {
+      return res.status(400).json({ message: 'Latitude and longitude are required' });
+    }
+    
+    // Get nearby drivers from database
+    const [drivers] = await db.execute(`
+      SELECT 
+        d.id, d.name, d.phone, d.vehicle_type, d.license_plate, d.rating, d.status,
+        dl.latitude, dl.longitude,
+        (6371 * acos(cos(radians(?)) * cos(radians(dl.latitude)) * cos(radians(dl.longitude) - radians(?)) + sin(radians(?)) * sin(radians(dl.latitude)))) AS distance
+      FROM drivers d
+      JOIN driver_locations dl ON d.id = dl.driver_id
+      WHERE d.status = 'online'
+      HAVING distance < ?
+      ORDER BY distance
+      LIMIT 10
+    `, [lat, lng, lat, radius]);
+    
+    const driversWithEta = drivers.map(driver => ({
+      id: driver.id,
+      name: driver.name,
+      phone: driver.phone,
+      vehicle_type: driver.vehicle_type,
+      license_plate: driver.license_plate,
+      rating: parseFloat(driver.rating) || 5.0,
+      status: driver.status,
+      location: {
+        lat: parseFloat(driver.latitude),
+        lng: parseFloat(driver.longitude)
+      },
+      eta: Math.ceil(driver.distance * 2), // Rough ETA in minutes
+      distance: Math.round(driver.distance * 100) / 100
+    }));
+    
+    res.json(driversWithEta);
+  } catch (error) {
+    console.error('Nearby drivers error:', error);
+    res.status(500).json({ message: 'Failed to get nearby drivers' });
   }
 });
 
 // Book ride - SEQUENTIAL (BLOCKING) - FOR PERFORMANCE COMPARISON
-router.post('/book-sequential', auth, validateRideRequest, async (req, res) => {
+router.post('/book-sequential', auth, validateRideRequestEnhanced, async (req, res) => {
   const startTime = Date.now();
   
   try {
@@ -116,6 +212,7 @@ router.post('/book-sequential', auth, validateRideRequest, async (req, res) => {
     
     res.json({
       ride_id: rideId,
+      status: 'requested',
       performance: {
         method: 'sequential',
         totalTime,
@@ -132,7 +229,7 @@ router.post('/book-sequential', auth, validateRideRequest, async (req, res) => {
 });
 
 // Book ride - PARALLEL (ASYNC) - FOR PERFORMANCE COMPARISON
-router.post('/book-parallel', auth, validateRideRequest, async (req, res) => {
+router.post('/book-parallel', auth, validateRideRequestEnhanced, async (req, res) => {
   const startTime = Date.now();
   
   try {
@@ -196,6 +293,7 @@ router.post('/book-parallel', auth, validateRideRequest, async (req, res) => {
     
     res.json({
       ride_id: rideId,
+      status: 'requested',
       performance: {
         method: 'parallel',
         totalTime,
@@ -212,7 +310,7 @@ router.post('/book-parallel', auth, validateRideRequest, async (req, res) => {
 });
 
 // Regular book ride endpoint
-router.post('/book', auth, validateRideRequest, async (req, res) => {
+router.post('/book', auth, validateRideRequestEnhanced, async (req, res) => {
   try {
     const { pickup, dropoff, ride_type } = req.body;
     const userId = req.user.id;
@@ -227,7 +325,11 @@ router.post('/book', auth, validateRideRequest, async (req, res) => {
       [rideId, userId, pickup.lat, pickup.lng, dropoff.lat, dropoff.lng, ride_type]
     );
     
-    res.json({ ride_id: rideId });
+    res.json({ 
+      ride_id: rideId,
+      status: 'requested',
+      message: 'Ride booked successfully'
+    });
   } catch (error) {
     console.error('Booking error:', error);
     res.status(500).json({ message: 'Failed to book ride' });
@@ -241,13 +343,13 @@ router.get('/history', auth, async (req, res) => {
     
     const [rides] = await db.execute(
       `SELECT id, pickup_lat, pickup_lng, dropoff_lat, dropoff_lng, 
-       ride_type, status, fare, surge_multiplier, created_at, completed_at
+       ride_type, status, fare, surge_multiplier, created_at, completed_at 
        FROM rides WHERE user_id = ? ORDER BY created_at DESC LIMIT 20`,
       [userId]
     );
     
     const [stats] = await db.execute(
-      `SELECT COUNT(*) as total_trips, SUM(fare) as total_spent, AVG(rating) as average_rating
+      `SELECT COUNT(*) as total_trips, SUM(fare) as total_spent, AVG(rating) as average_rating 
        FROM rides WHERE user_id = ? AND status = 'completed'`,
       [userId]
     );

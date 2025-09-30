@@ -5,10 +5,10 @@ services:
     container_name: rideshare-mysql
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: password
+      MYSQL_ROOT_PASSWORD: rideshare_root_password
       MYSQL_DATABASE: rideshare
       MYSQL_USER: rideshare_user
-      MYSQL_PASSWORD: password
+      MYSQL_PASSWORD: rideshare_password
     ports:
       - "3307:3306"
     volumes:
@@ -35,7 +35,7 @@ services:
       DB_HOST: mysql
       DB_PORT: 3306
       DB_USER: rideshare_user
-      DB_PASSWORD: password
+      DB_PASSWORD: rideshare_password
       DB_NAME: rideshare
       JWT_SECRET: your-super-secret-jwt-key-change-in-production
       FRONTEND_URL: http://localhost:8080
