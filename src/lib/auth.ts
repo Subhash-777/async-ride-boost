@@ -4,10 +4,20 @@ import { jwtDecode } from 'jwt-decode';
 const TOKEN_KEY = 'ride_auth_token';
 const USER_KEY = 'ride_user_data';
 
+// ✅ FIX: Helper function to ensure wallet_balance is a number
+const normalizeUser = (user: any): User => {
+  return {
+    ...user,
+    wallet_balance: parseFloat(user.wallet_balance) || 0.0
+  };
+};
+
 export const authService = {
   setAuth: (token: string, user: User) => {
     localStorage.setItem(TOKEN_KEY, token);
-    localStorage.setItem(USER_KEY, JSON.stringify(user));
+    // ✅ FIX: Normalize user data before storing
+    const normalizedUser = normalizeUser(user);
+    localStorage.setItem(USER_KEY, JSON.stringify(normalizedUser));
   },
 
   getToken: (): string | null => {
@@ -16,7 +26,15 @@ export const authService = {
 
   getUser: (): User | null => {
     const userData = localStorage.getItem(USER_KEY);
-    return userData ? JSON.parse(userData) : null;
+    if (!userData) return null;
+    
+    try {
+      const user = JSON.parse(userData);
+      // ✅ FIX: Always normalize user data when retrieving
+      return normalizeUser(user);
+    } catch {
+      return null;
+    }
   },
 
   isAuthenticated: (): boolean => {

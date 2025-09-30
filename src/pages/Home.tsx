@@ -11,9 +11,23 @@ import { LogOut, User, Wallet, History, Activity } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Navigate } from 'react-router-dom';
 
+// ✅ FIX: Helper function to safely format wallet balance
+const formatWalletBalance = (balance: any): string => {
+  if (balance === null || balance === undefined) {
+    return '0.00';
+  }
+  
+  const numBalance = Number(balance);
+  if (isNaN(numBalance)) {
+    return '0.00';
+  }
+  
+  return numBalance.toFixed(2);
+};
+
 export const HomePage: React.FC = () => {
-  const [pickup, setPickup] = useState<Location | undefined>();
-  const [dropoff, setDropoff] = useState<Location | undefined>();
+  const [pickup, setPickup] = useState<Location>();
+  const [dropoff, setDropoff] = useState<Location>();
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [isLoadingDrivers, setIsLoadingDrivers] = useState(false);
   const user = authService.getUser();
@@ -57,53 +71,62 @@ export const HomePage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background text-foreground">
       {/* Header */}
       <header className="border-b border-border bg-card">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-full bg-gradient-primary">
-                <span className="text-white text-xl">🚗</span>
-              </div>
-              <div>
-                <h1 className="text-xl font-bold">RideShare</h1>
-                <p className="text-sm text-muted-foreground">Welcome back, {user.name}</p>
-              </div>
+            <div className="flex items-center gap-4">
+              <h1 className="text-2xl font-bold text-ride-primary">RideShare</h1>
+              <Badge variant="secondary" className="bg-green-900/30 text-green-400">
+                Async Database Performance Demo
+              </Badge>
             </div>
             
-            <div className="flex items-center gap-3">
-              <Card className="px-3 py-1">
-                <div className="flex items-center gap-2">
-                  <Wallet className="h-4 w-4 text-ride-primary" />
-                  <span className="text-sm font-medium">${user.wallet_balance.toFixed(2)}</span>
-                </div>
-              </Card>
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2 text-sm">
+                <User className="h-4 w-4" />
+                <span>{user.name}</span>
+              </div>
               
-              <Button variant="ghost" size="icon" onClick={handleLogout}>
+              <div className="flex items-center gap-2 text-sm">
+                <Wallet className="h-4 w-4 text-green-400" />
+                {/* ✅ FIX: Use safe formatting function */}
+                <span>${formatWalletBalance(user.wallet_balance)}</span>
+              </div>
+              
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleLogout}
+                className="gap-2"
+              >
                 <LogOut className="h-4 w-4" />
+                Logout
               </Button>
             </div>
           </div>
         </div>
       </header>
 
-      <div className="container mx-auto px-4 py-6">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="container mx-auto px-4 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          
           {/* Map Section */}
-          <div className="lg:col-span-2">
-            <Card className="shadow-card">
+          <div className="space-y-4">
+            <Card className="border-card-border">
               <CardHeader className="pb-4">
                 <CardTitle className="flex items-center justify-between">
-                  <span>Live Map</span>
-                  <div className="flex items-center gap-2">
-                    {isLoadingDrivers && (
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-ride-primary"></div>
-                    )}
-                    <Badge variant="outline" className="text-xs">
-                      {drivers.length} drivers nearby
-                    </Badge>
-                  </div>
+                  <span className="flex items-center gap-2">
+                    <Activity className="h-5 w-5 text-blue-400" />
+                    Live Map
+                  </span>
+                  {isLoadingDrivers && (
+                    <Badge variant="secondary">Loading...</Badge>
+                  )}
+                  <Badge variant="outline">
+                    {drivers.length} drivers nearby
+                  </Badge>
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-0">
@@ -133,7 +156,7 @@ export const HomePage: React.FC = () => {
           </div>
 
           {/* Booking Section */}
-          <div className="space-y-6">
+          <div className="space-y-4">
             <RideBooking
               pickup={pickup}
               dropoff={dropoff}
@@ -141,47 +164,41 @@ export const HomePage: React.FC = () => {
             />
 
             {/* Quick Actions */}
-            <Card className="shadow-card">
+            <Card className="border-card-border">
               <CardHeader>
-                <CardTitle className="text-lg">Quick Actions</CardTitle>
+                <CardTitle>Quick Actions</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <Button variant="outline" className="w-full justify-start" size="sm">
-                  <History className="h-4 w-4 mr-2" />
-                  Trip History
+                <Button variant="outline" className="w-full justify-start gap-2">
+                  <History className="h-4 w-4" />
+                  View Trip History
                 </Button>
-                <Button variant="outline" className="w-full justify-start" size="sm">
-                  <User className="h-4 w-4 mr-2" />
-                  Profile Settings
-                </Button>
-                <Button variant="outline" className="w-full justify-start" size="sm">
-                  <Activity className="h-4 w-4 mr-2" />
-                  Performance Stats
+                <Button variant="outline" className="w-full justify-start gap-2">
+                  <Wallet className="h-4 w-4" />
+                  Add Payment Method
                 </Button>
               </CardContent>
             </Card>
 
             {/* Performance Info */}
-            <Card className="shadow-card bg-gradient-to-br from-ride-primary/10 to-ride-accent/10">
+            <Card className="border-yellow-900/30 bg-yellow-950/20">
               <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Activity className="h-5 w-5 text-ride-primary" />
+                <CardTitle className="text-yellow-400">
                   Database Performance Demo
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-2">
+              <CardContent className="space-y-3">
                 <p className="text-sm text-muted-foreground">
                   This app demonstrates the performance difference between sequential and parallel database operations.
                 </p>
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 bg-ride-danger rounded-full"></div>
-                    <span className="text-xs">Sequential: ~300-500ms</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 bg-ride-primary rounded-full"></div>
-                    <span className="text-xs">Parallel: ~100-200ms</span>
-                  </div>
+                
+                <div className="flex justify-between items-center text-sm">
+                  <Badge variant="destructive">
+                    Sequential: ~300-500ms
+                  </Badge>
+                  <Badge variant="default" className="bg-green-900/30 text-green-400">
+                    Parallel: ~100-200ms
+                  </Badge>
                 </div>
               </CardContent>
             </Card>

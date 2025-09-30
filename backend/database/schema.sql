@@ -17,6 +17,8 @@ CREATE TABLE users (
     INDEX idx_email (email),
     INDEX idx_created_at (created_at)
 );
+-- Update the existing users table to ensure wallet_balance is properly handled
+ALTER TABLE users MODIFY COLUMN wallet_balance DECIMAL(10,2) DEFAULT 0.00 NOT NULL;
 
 -- Drivers table
 CREATE TABLE drivers (
